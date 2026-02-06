@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { isAIEnabled } from "@/lib/llm/provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,7 +9,8 @@ import { Leaderboard } from "@/components/features/leaderboard";
 import { ActivityChart } from "@/components/features/activity-chart";
 import { StatsCards } from "@/components/features/stats-cards";
 import { RecentActivity } from "@/components/features/recent-activity";
-import { AiSuggestionsCard } from "@/components/features/ai-suggestions-card";
+import { SuggestionsCard } from "@/components/features/suggestions-card";
+import { PlanStatusCard } from "@/components/features/plan-status-card";
 import { Copy } from "lucide-react";
 
 import type { MemberType } from "@prisma/client";
@@ -175,6 +177,18 @@ export default async function DashboardPage() {
     take: 5,
   });
 
+  // Get active plan for this household
+  const activePlan = await prisma.weeklyPlan.findFirst({
+    where: {
+      householdId,
+      status: { in: ["PENDING", "APPLIED"] },
+      expiresAt: { gt: now },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const aiEnabled = isAIEnabled();
+
   // XP progress to next level
   const currentXp = member.level?.xp ?? 0;
   const currentLevel = member.level?.level ?? 1;
@@ -214,6 +228,34 @@ export default async function DashboardPage() {
           <Progress value={xpProgressPercent} className="h-3" />
         </CardContent>
       </Card>
+
+      {/* Suggestions Card - Priority placement */}
+      <div className="mb-6">
+        <SuggestionsCard />
+      </div>
+
+      {/* Plan Status Card */}
+      {aiEnabled && (
+        <div className="mb-6">
+          <PlanStatusCard
+            plan={activePlan ? {
+              id: activePlan.id,
+              status: activePlan.status,
+              balanceScore: activePlan.balanceScore,
+              assignments: activePlan.assignments as Array<{
+                taskName: string;
+                memberName: string;
+                memberType: MemberType;
+                reason: string;
+              }>,
+              createdAt: activePlan.createdAt,
+              appliedAt: activePlan.appliedAt,
+              expiresAt: activePlan.expiresAt,
+            } : null}
+            aiEnabled={aiEnabled}
+          />
+        </div>
+      )}
 
       {/* Stats */}
       <div className="mb-6 sm:mb-8">
@@ -273,7 +315,6 @@ export default async function DashboardPage() {
 
         <div className="space-y-6 lg:order-0">
           <Leaderboard members={leaderboard} currentMemberId={member.id} />
-          <AiSuggestionsCard />
         </div>
       </div>
     </div>

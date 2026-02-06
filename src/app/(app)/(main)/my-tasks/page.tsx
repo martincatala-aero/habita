@@ -5,7 +5,9 @@ import { isAIEnabled } from "@/lib/llm/provider";
 import { MyAssignmentsList } from "@/components/features/my-assignments-list";
 import { PendingTransfers } from "@/components/features/pending-transfers";
 import { WeeklyCelebrationWrapper } from "@/components/features/weekly-celebration-wrapper";
-import { GeneratePlanWrapper } from "@/components/features/generate-plan-wrapper";
+import { PlanStatusCard } from "@/components/features/plan-status-card";
+
+import type { MemberType } from "@prisma/client";
 
 export default async function MyTasksPage() {
   const member = await getCurrentMember();
@@ -20,7 +22,7 @@ export default async function MyTasksPage() {
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const [assignments, completedToday, completedThisWeek, totalCompleted, transfers, householdMembers] = await Promise.all([
+  const [assignments, completedToday, completedThisWeek, totalCompleted, transfers, householdMembers, activePlan] = await Promise.all([
     prisma.assignment.findMany({
       where: {
         memberId: member.id,
@@ -89,11 +91,37 @@ export default async function MyTasksPage() {
       },
       select: { id: true, name: true },
     }),
+    prisma.weeklyPlan.findFirst({
+      where: {
+        householdId: member.householdId,
+        status: { in: ["PENDING", "APPLIED"] },
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   // Show celebration if no pending tasks and completed at least 1 this week
   const showCelebration = assignments.length === 0 && completedThisWeek > 0;
   const aiEnabled = isAIEnabled();
+
+  // Transform plan for the status card
+  const planForCard = activePlan
+    ? {
+        id: activePlan.id,
+        status: activePlan.status,
+        balanceScore: activePlan.balanceScore,
+        assignments: activePlan.assignments as Array<{
+          taskName: string;
+          memberName: string;
+          memberType: MemberType;
+          reason: string;
+        }>,
+        createdAt: activePlan.createdAt,
+        appliedAt: activePlan.appliedAt,
+        expiresAt: activePlan.expiresAt,
+      }
+    : null;
 
   return (
     <div className="container max-w-4xl px-4 py-6 sm:py-8">
@@ -105,8 +133,12 @@ export default async function MyTasksPage() {
               {assignments.length} pendientes · {completedToday} completadas hoy
             </p>
           </div>
-          <GeneratePlanWrapper enabled={aiEnabled} />
         </div>
+      </div>
+
+      {/* Plan status card */}
+      <div className="mb-6">
+        <PlanStatusCard plan={planForCard} aiEnabled={aiEnabled} />
       </div>
 
       {/* Celebration when all tasks complete */}

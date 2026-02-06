@@ -463,6 +463,32 @@ enum PenaltyReason {
 }
 
 // ============================================
+// AI PLAN MODEL
+// ============================================
+
+model WeeklyPlan {
+  id            String           @id @default(cuid())
+  householdId   String
+  status        WeeklyPlanStatus @default(PENDING)
+  balanceScore  Int              @default(0)
+  notes         String[]         @default([])
+  assignments   Json             // Array of { taskName, memberName, memberType, reason }
+  createdAt     DateTime         @default(now())
+  appliedAt     DateTime?
+  expiresAt     DateTime         // Plans expire after a week
+
+  @@index([householdId, status])
+  @@map("weekly_plans")
+}
+
+enum WeeklyPlanStatus {
+  PENDING   // Generated but not yet applied
+  APPLIED   // User accepted and assignments created
+  EXPIRED   // Plan expired without being applied
+  REJECTED  // User explicitly rejected
+}
+
+// ============================================
 // CATALOG MODEL (Predefined Tasks)
 // ============================================
 

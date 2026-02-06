@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { isAIEnabled } from "@/lib/llm/provider";
+import { isAIEnabled, getAIProviderType } from "@/lib/llm/provider";
 import { generateWeeklyPlan } from "@/lib/llm/anthropic-provider";
+import { generateWeeklyPlanGemini } from "@/lib/llm/gemini-provider";
+import { generateWeeklyPlanOpenRouter } from "@/lib/llm/openrouter-provider";
 
 /**
  * GET /api/ai/recommendations
@@ -45,7 +47,7 @@ export async function GET() {
       }),
     ]);
 
-    const recommendations = await generateWeeklyPlan({
+    const planInput = {
       members: members.map((m) => ({
         name: m.name,
         type: m.memberType,
@@ -61,7 +63,18 @@ export async function GET() {
         memberName: a.member.name,
         completedAt: a.completedAt ?? undefined,
       })),
-    });
+    };
+
+    const providerType = getAIProviderType();
+    let recommendations;
+
+    if (providerType === "openrouter") {
+      recommendations = await generateWeeklyPlanOpenRouter(planInput);
+    } else if (providerType === "gemini") {
+      recommendations = await generateWeeklyPlanGemini(planInput);
+    } else {
+      recommendations = await generateWeeklyPlan(planInput);
+    }
 
     return NextResponse.json(recommendations);
   } catch (error) {

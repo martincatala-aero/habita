@@ -1,15 +1,34 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { computeDueDateForFrequency } from "@/lib/due-date";
-import { isAIEnabled } from "./provider";
+import { isAIEnabled, getAIProviderType } from "./provider";
+import { generateAIPlanOpenRouter } from "./openrouter-provider";
 
 import type { TaskFrequency } from "@prisma/client";
+import type { LanguageModel } from "ai";
 
-const anthropic = createAnthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+function getModel(): LanguageModel | null {
+  const providerType = getAIProviderType();
+
+  if (providerType === "openrouter") {
+    return null; // OpenRouter uses its own SDK
+  }
+
+  if (providerType === "gemini") {
+    const google = createGoogleGenerativeAI({
+      apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    });
+    return google("gemini-1.5-flash");
+  }
+
+  const anthropic = createAnthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+  return anthropic("claude-3-5-haiku-latest");
+}
 
 const assignmentSchema = z.object({
   assignments: z.array(
@@ -66,11 +85,41 @@ export async function generateAIPlan(householdId: string): Promise<AIPlanResult 
     return null;
   }
 
+  const providerType = getAIProviderType();
+
+  // Use OpenRouter SDK if configured
+  if (providerType === "openrouter") {
+    try {
+      const result = await generateAIPlanOpenRouter({
+        members: context.members.map((m) => ({
+          name: m.name,
+          type: m.type,
+          pendingCount: m.pendingCount,
+        })),
+        tasks: context.tasks.map((t) => ({
+          name: t.name,
+          frequency: t.frequency,
+          weight: t.weight,
+        })),
+      });
+      return result;
+    } catch (error) {
+      console.error("OpenRouter AI plan generation error:", error);
+      return null;
+    }
+  }
+
+  // Use Vercel AI SDK for Gemini/Anthropic
+  const model = getModel();
+  if (!model) {
+    return null;
+  }
+
   const prompt = buildPlanPrompt(context);
 
   try {
     const result = await generateObject({
-      model: anthropic("claude-3-5-haiku-latest"),
+      model,
       schema: assignmentSchema,
       prompt,
     });

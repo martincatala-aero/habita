@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/features/onboarding/progress-indicator";
 import { CatalogTaskItem } from "@/components/features/onboarding/catalog-task-item";
-import { ChevronRight, Plus, Check } from "lucide-react";
+import { ChevronRight, Plus, Check, Search, X } from "lucide-react";
 
 type StepId = "name" | "group" | "household" | "catalog" | "frequency" | "summary" | "creating" | "invite" | "join";
 type MemberTypeChoice = "adult" | "teen" | "child";
@@ -117,6 +117,7 @@ function OnboardingContent() {
   const [showCustomTask, setShowCustomTask] = useState(false);
   const [customTaskName, setCustomTaskName] = useState("");
   const [customTaskFrequency, setCustomTaskFrequency] = useState("WEEKLY");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // New: group step state
   const [peopleCount, setPeopleCount] = useState(2);
@@ -143,19 +144,70 @@ function OnboardingContent() {
   const fetchCatalog = useCallback(async () => {
     setCatalogLoading(true);
     try {
-      const res = await fetch("/api/tasks/catalog");
-      if (!res.ok) throw new Error("Error al cargar catálogo");
-      const data = (await res.json()) as { categories: CategoryFromApi[] };
+      // Use AI-enhanced task suggestions based on household context
+      const res = await fetch("/api/ai/suggest-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          peopleCount,
+          hasChildren,
+          hasPets,
+        }),
+      });
+
+      if (!res.ok) {
+        // Fallback to static catalog
+        const fallbackRes = await fetch("/api/tasks/catalog");
+        if (!fallbackRes.ok) throw new Error("Error al cargar catálogo");
+        const data = (await fallbackRes.json()) as { categories: CategoryFromApi[] };
+        const byCategory: Record<string, CatalogTask[]> = {};
+        let firstCategory: string | null = null;
+        for (const cat of data.categories) {
+          byCategory[cat.category] = cat.tasks.map((t) => ({
+            ...t,
+            selected: false,
+            category: cat.category,
+          }));
+          if (!firstCategory) firstCategory = cat.category;
+        }
+        setCatalogTasks(byCategory);
+        if (firstCategory) setExpandedCategory(firstCategory);
+        return;
+      }
+
+      const data = (await res.json()) as {
+        categories: Array<{
+          name: string;
+          label: string;
+          icon: string;
+          tasks: Array<{
+            name: string;
+            frequency: string;
+            icon: string;
+            estimatedMinutes: number;
+            weight: number;
+          }>;
+        }>;
+        insights: string[];
+      };
+
       const byCategory: Record<string, CatalogTask[]> = {};
       let firstCategory: string | null = null;
+
       for (const cat of data.categories) {
-        byCategory[cat.category] = cat.tasks.map((t) => ({
-          ...t,
+        byCategory[cat.name] = cat.tasks.map((t) => ({
+          name: t.name,
+          icon: t.icon,
+          defaultFrequency: t.frequency.toLowerCase(),
+          defaultWeight: t.weight,
+          estimatedMinutes: t.estimatedMinutes,
+          minAge: null,
           selected: false,
-          category: cat.category,
+          category: cat.name,
         }));
-        if (!firstCategory) firstCategory = cat.category;
+        if (!firstCategory) firstCategory = cat.name;
       }
+
       setCatalogTasks(byCategory);
       if (firstCategory) setExpandedCategory(firstCategory);
     } catch {
@@ -163,7 +215,7 @@ function OnboardingContent() {
     } finally {
       setCatalogLoading(false);
     }
-  }, []);
+  }, [peopleCount, hasChildren, hasPets]);
 
   useEffect(() => {
     if (step !== "catalog") {
@@ -585,18 +637,49 @@ function OnboardingContent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {/* Search input */}
+              <div className="relative mb-4 shrink-0">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar tareas..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`pl-9 ${inputClass}`}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">
                 {catalogLoading ? (
                   <p className="text-center text-muted-foreground">
-                    Cargando catálogo...
+                    Generando sugerencias personalizadas...
                   </p>
                 ) : (
                   <>
-                    {Object.entries(catalogTasks).map(([categoryKey, tasks]) => {
-                      const total = tasks.length;
-                      const selected = tasks.filter((t) => t.selected).length;
-                      const meta = categoryKey === "other" ? { label: "Otros", icon: "📋" } : { label: categoryKey, icon: tasks[0]?.icon ?? "📋" };
-                      const isExpanded = expandedCategory === categoryKey;
+                    {Object.entries(catalogTasks)
+                      .map(([categoryKey, tasks]) => {
+                        // Filter tasks by search query
+                        const filteredTasks = searchQuery
+                          ? tasks.filter((t) =>
+                              t.name.toLowerCase().includes(searchQuery.toLowerCase())
+                            )
+                          : tasks;
+                        return { categoryKey, tasks, filteredTasks };
+                      })
+                      .filter(({ filteredTasks }) => filteredTasks.length > 0)
+                      .map(({ categoryKey, tasks, filteredTasks }) => {
+                        const total = filteredTasks.length;
+                        const selected = filteredTasks.filter((t) => t.selected).length;
+                        const meta = categoryKey === "other" ? { label: "Otros", icon: "📋" } : { label: categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1), icon: tasks[0]?.icon ?? "📋" };
+                        const isExpanded = expandedCategory === categoryKey || !!searchQuery;
 
                       return (
                         <div key={categoryKey} className="rounded-xl border bg-card">
@@ -620,7 +703,7 @@ function OnboardingContent() {
                           </button>
                           {isExpanded && (
                             <div className="space-y-2 border-t px-4 pb-4 pt-2">
-                              {tasks.map((t) => (
+                              {filteredTasks.map((t) => (
                                 <CatalogTaskItem
                                   key={t.name + categoryKey}
                                   task={t}
@@ -632,6 +715,26 @@ function OnboardingContent() {
                         </div>
                       );
                     })}
+
+                    {/* No results message */}
+                    {searchQuery && Object.entries(catalogTasks).every(([, tasks]) =>
+                      !tasks.some((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    ) && (
+                      <div className="py-8 text-center">
+                        <p className="text-muted-foreground">No se encontraron tareas con "{searchQuery}"</p>
+                        <Button
+                          type="button"
+                          variant="link"
+                          onClick={() => {
+                            setCustomTaskName(searchQuery);
+                            setShowCustomTask(true);
+                            setSearchQuery("");
+                          }}
+                        >
+                          Agregar "{searchQuery}" como tarea personalizada
+                        </Button>
+                      </div>
+                    )}
 
                     {!showCustomTask ? (
                       <Button

@@ -1,11 +1,54 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { streamText } from "ai";
+import { OpenRouter } from "@openrouter/sdk";
 import { requireMember } from "@/lib/session";
 import { buildAssistantContext } from "@/lib/llm/assistant-context";
 import { ASSISTANT_SYSTEM } from "@/lib/llm/prompts";
-import { isAIEnabled } from "@/lib/llm/provider";
+import { isAIEnabled, getAIProviderType } from "@/lib/llm/provider";
 
 import type { NextRequest } from "next/server";
+import type { LanguageModel } from "ai";
+
+function getModel(): LanguageModel | null {
+  const providerType = getAIProviderType();
+
+  if (providerType === "openrouter") {
+    // OpenRouter uses its own SDK, not Vercel AI SDK
+    return null;
+  }
+
+  if (providerType === "gemini") {
+    const google = createGoogleGenerativeAI({
+      apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    });
+    return google("gemini-1.5-flash");
+  }
+
+  const anthropic = createAnthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+  return anthropic("claude-3-5-haiku-latest");
+}
+
+async function streamWithOpenRouter(systemPrompt: string, userPrompt: string) {
+  const client = new OpenRouter({
+    apiKey: process.env.OPENROUTER_API_KEY,
+  });
+
+  const stream = await client.chat.send({
+    chatGenerationParams: {
+      model: "openrouter/auto",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+    },
+  });
+
+  return stream;
+}
 
 /**
  * POST /api/ai/chat
@@ -18,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     if (!isAIEnabled()) {
       return new Response(
-        JSON.stringify({ error: "AI features not configured. Set ANTHROPIC_API_KEY." }),
+        JSON.stringify({ error: "AI features not configured. Set OPENROUTER_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY or ANTHROPIC_API_KEY." }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -56,14 +99,47 @@ ${context.recentActivity}
 ${context.memberStats}
 `.trim();
 
-    const anthropic = createAnthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    const fullPrompt = `${contextText}\n\n## Pregunta del usuario\n${message}`;
+    const providerType = getAIProviderType();
+
+    // Handle OpenRouter streaming separately
+    if (providerType === "openrouter") {
+      const stream = await streamWithOpenRouter(ASSISTANT_SYSTEM, fullPrompt);
+
+      const encoder = new TextEncoder();
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content;
+            if (content) {
+              controller.enqueue(encoder.encode(content));
+            }
+          }
+          controller.close();
+        },
+      });
+
+      return new Response(readableStream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+        },
+      });
+    }
+
+    // Use Vercel AI SDK for Gemini/Anthropic
+    const model = getModel();
+    if (!model) {
+      return new Response(
+        JSON.stringify({ error: "No model available" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const result = streamText({
-      model: anthropic("claude-3-5-haiku-latest"),
+      model,
       system: ASSISTANT_SYSTEM,
-      prompt: `${contextText}\n\n## Pregunta del usuario\n${message}`,
+      prompt: fullPrompt,
     });
 
     return result.toTextStreamResponse();

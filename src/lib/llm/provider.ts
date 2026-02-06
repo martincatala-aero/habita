@@ -10,7 +10,7 @@ const DEFAULT_SUGGESTED_TASKS: SuggestedTasksOutput = { tasks: [] };
 
 /**
  * Proveedor LLM stub: devuelve respuestas por defecto sin llamar a ningún modelo.
- * Usado cuando ANTHROPIC_API_KEY no está configurada.
+ * Usado cuando no hay API key configurada.
  */
 export const stubLLMProvider: ILLMProvider = {
   async completeWithSchema<T>(options: {
@@ -33,13 +33,42 @@ export const stubLLMProvider: ILLMProvider = {
 };
 
 /**
+ * Get the configured AI provider type.
+ * Priority: OpenRouter > Gemini > Anthropic > None
+ */
+export function getAIProviderType(): "openrouter" | "gemini" | "anthropic" | "none" {
+  if (process.env.OPENROUTER_API_KEY) {
+    return "openrouter";
+  }
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return "gemini";
+  }
+  if (process.env.ANTHROPIC_API_KEY) {
+    return "anthropic";
+  }
+  return "none";
+}
+
+/**
  * Get the LLM provider based on environment configuration.
- * Uses Anthropic Claude if ANTHROPIC_API_KEY is set, otherwise falls back to stub.
+ * Priority: OpenRouter > Gemini > Anthropic > Stub
  */
 export function getLLMProvider(): ILLMProvider {
-  // Check if Anthropic API key is configured
-  if (process.env.ANTHROPIC_API_KEY) {
-    // Dynamic import to avoid loading SDK when not needed
+  const providerType = getAIProviderType();
+
+  if (providerType === "openrouter") {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { openrouterProvider } = require("./openrouter-provider") as { openrouterProvider: ILLMProvider };
+    return openrouterProvider;
+  }
+
+  if (providerType === "gemini") {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { geminiProvider } = require("./gemini-provider") as { geminiProvider: ILLMProvider };
+    return geminiProvider;
+  }
+
+  if (providerType === "anthropic") {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { anthropicProvider } = require("./anthropic-provider") as { anthropicProvider: ILLMProvider };
     return anthropicProvider;
@@ -49,8 +78,8 @@ export function getLLMProvider(): ILLMProvider {
 }
 
 /**
- * Check if AI features are enabled (API key is configured).
+ * Check if AI features are enabled (any API key is configured).
  */
 export function isAIEnabled(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return getAIProviderType() !== "none";
 }

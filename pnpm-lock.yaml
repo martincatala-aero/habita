@@ -11,12 +11,18 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^3.0.37
         version: 3.0.37(zod@3.25.76)
+      '@ai-sdk/google':
+        specifier: ^3.0.21
+        version: 3.0.21(zod@3.25.76)
       '@ai-sdk/react':
         specifier: ^3.0.74
         version: 3.0.74(react@19.2.3)(zod@3.25.76)
       '@auth/prisma-adapter':
         specifier: ^2.9.0
         version: 2.11.1(@prisma/client@6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3))
+      '@openrouter/sdk':
+        specifier: ^0.8.0
+        version: 0.8.0
       '@prisma/client':
         specifier: ^6.6.0
         version: 6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)
@@ -122,6 +128,12 @@ packages:
 
   '@ai-sdk/gateway@3.0.35':
     resolution: {integrity: sha512-9aRTVM1P1u4yUIjBpco/WCF1WXr/DgWKuDYgLLHdENS8kiEuxDOPJuGbc/6+7EwQ6ZqSh0UOgeqvHfGJfU23Qg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/google@3.0.21':
+    resolution: {integrity: sha512-qQuvcbDqDPZojtoT45UFCQVH2w3m6KJKKjqJduUsvhN5ZqOXste0h4HgHK8hwGuDfv96Jr9QQEpspbgp6iu5Uw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -705,6 +717,9 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
+
+  '@openrouter/sdk@0.8.0':
+    resolution: {integrity: sha512-hmCY5CE/adBmwZmrwuSx7Pw5UngcyuA9FvgpouyWEX8m283omLD1BqJlYYkLdVoUdI8iGNFHKezH2CeJqsVymw==}
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
@@ -2942,6 +2957,12 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 3.25.76
 
+  '@ai-sdk/google@3.0.21(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.7
+      '@ai-sdk/provider-utils': 4.0.13(zod@3.25.76)
+      zod: 3.25.76
+
   '@ai-sdk/provider-utils@4.0.13(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.7
@@ -3424,6 +3445,10 @@ snapshots:
       fastq: 1.20.1
 
   '@nolyfill/is-core-module@1.0.39': {}
+
+  '@openrouter/sdk@0.8.0':
+    dependencies:
+      zod: 3.25.76
 
   '@opentelemetry/api@1.9.0': {}
 
