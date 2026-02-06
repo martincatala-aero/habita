@@ -65,11 +65,12 @@ export function Leaderboard({ members, currentMemberId }: LeaderboardProps) {
           {members.map((member, index) => (
             <div
               key={member.id}
-              className={`flex items-center justify-between gap-2 rounded-2xl border-2 p-3 transition-colors ${
+              className={`animate-stagger-fade-in flex items-center justify-between gap-2 rounded-2xl border-2 p-3 transition-all duration-200 hover:scale-[1.01] ${
                 member.id === currentMemberId
                   ? "border-primary bg-primary/10"
                   : "border-border/60 bg-card"
               }`}
+              style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center">

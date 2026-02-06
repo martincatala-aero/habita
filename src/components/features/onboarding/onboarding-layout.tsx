@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import type { ReactNode } from "react";
@@ -59,7 +59,14 @@ export function OnboardingLayout({
             onClick={onContinue}
             disabled={continueDisabled || continueLoading}
           >
-            {continueLoading ? "Cargando..." : continueLabel}
+            {continueLoading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Cargando...
+              </>
+            ) : (
+              continueLabel
+            )}
           </Button>
         </div>
       )}

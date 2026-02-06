@@ -19,7 +19,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         aria-checked={checked}
         onClick={() => onCheckedChange?.(!checked)}
         className={cn(
-          "flex size-[24px] shrink-0 items-center justify-center rounded-[4px] border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "flex size-[24px] shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           checked
             ? "border-primary bg-primary text-white"
             : "border-border bg-transparent",
@@ -27,7 +27,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         )}
         {...props}
       >
-        {checked && <Check className="size-4" strokeWidth={3} />}
+        {checked && <Check className="size-4 animate-check-pop" strokeWidth={3} />}
       </button>
     );
   }

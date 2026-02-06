@@ -114,8 +114,47 @@ body {
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toast animations */
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toast-fade-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(100%); }
+}
+
+/* Step transitions (onboarding) */
+@keyframes step-enter {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes step-enter-reverse {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Stagger para listas */
+@keyframes stagger-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scroll reveal */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Checkbox pop */
+@keyframes check-pop {
+  0%   { transform: scale(0.8); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
 
 .animate-fade-up {
@@ -127,5 +166,47 @@ body {
 }
 
 .animate-fade-in {
-  animation: fade-in 150ms ease-out;
+  animation: fade-in 300ms ease-out;
+}
+
+.animate-toast-slide-in {
+  animation: toast-slide-in 300ms ease-out forwards;
+}
+
+.animate-toast-fade-out {
+  animation: toast-fade-out 200ms ease-in forwards;
+}
+
+.animate-step-enter {
+  animation: step-enter 250ms ease-out;
+}
+
+.animate-step-enter-reverse {
+  animation: step-enter-reverse 250ms ease-out;
+}
+
+.animate-stagger-fade-in {
+  opacity: 0;
+  animation: stagger-fade-in 350ms ease-out forwards;
+  animation-delay: calc(var(--stagger-index, 0) * 60ms);
+}
+
+.animate-reveal-up {
+  opacity: 0;
+  animation: reveal-up 500ms ease-out forwards;
+}
+
+.animate-check-pop {
+  animation: check-pop 200ms ease-out;
+}
+
+/* Accessibility: respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

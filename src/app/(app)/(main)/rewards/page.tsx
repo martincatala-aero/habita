@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { getCurrentMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isAIEnabled } from "@/lib/llm/provider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Leaderboard } from "@/components/features/leaderboard";
 import { PlanRewardsSection } from "@/components/features/plan-rewards-section";
-import { Coins } from "lucide-react";
+import { Coins, Trophy, ShoppingBag } from "lucide-react";
 
 import type { MemberType } from "@prisma/client";
 
@@ -161,36 +160,33 @@ export default async function RewardsPage() {
       </div>
 
       {/* Points Summary */}
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Coins className="h-5 w-5 text-yellow-500" />
-              Puntos disponibles
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-[var(--color-xp)]">{availablePoints}</p>
-          </CardContent>
-        </Card>
+      <div className="mb-8 grid grid-cols-3 gap-3 sm:gap-4">
+        <div className="rounded-[10px] bg-[#d2ffa0] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#272727] sm:text-sm">Disponibles</span>
+            <Coins className="h-4 w-4 shrink-0 text-[#272727] opacity-70" />
+          </div>
+          <div className="mt-2 text-2xl font-bold text-[#272727] sm:text-3xl">{availablePoints}</div>
+          <p className="text-xs text-[#272727] opacity-60">puntos</p>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Puntos totales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-[var(--color-xp)]">{level?.xp ?? 0}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-[10px] bg-[#d0b6ff] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#522a97] sm:text-sm">Totales</span>
+            <Trophy className="h-4 w-4 shrink-0 text-[#522a97] opacity-70" />
+          </div>
+          <div className="mt-2 text-2xl font-bold text-[#522a97] sm:text-3xl">{level?.xp ?? 0}</div>
+          <p className="text-xs text-[#522a97] opacity-60">ganados</p>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Puntos canjeados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{spentPoints}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-[10px] bg-[#ffe8c3] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#272727] sm:text-sm">Canjeados</span>
+            <ShoppingBag className="h-4 w-4 shrink-0 text-[#272727] opacity-70" />
+          </div>
+          <div className="mt-2 text-2xl font-bold text-[#272727] sm:text-3xl">{spentPoints}</div>
+          <p className="text-xs text-[#272727] opacity-60">gastados</p>
+        </div>
       </div>
 
       {/* Leaderboard */}
@@ -226,19 +222,15 @@ export default async function RewardsPage() {
             {pastRewards.map((reward) => {
               const memberName = members.find((m) => m.id === reward.memberId)?.name ?? "Miembro";
               return (
-                <Card key={reward.id} className="opacity-70">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{reward.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xs text-muted-foreground">{memberName}</p>
-                    {reward.completionRate !== null && (
-                      <p className="text-xs text-muted-foreground">
-                        {reward.completionRate}% completado
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
+                <div key={reward.id} className="rounded-2xl bg-[#e4d5ff]/40 p-4 opacity-70">
+                  <p className="font-medium text-sm text-foreground">{reward.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{memberName}</p>
+                  {reward.completionRate !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      {reward.completionRate}% completado
+                    </p>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -12,11 +12,12 @@ interface Toast {
   type: ToastType;
   title: string;
   message?: string;
+  isExiting: boolean;
 }
 
 interface ToastContextType {
   toasts: Toast[];
-  addToast: (toast: Omit<Toast, "id">) => void;
+  addToast: (toast: Omit<Toast, "id" | "isExiting">) => void;
   removeToast: (id: string) => void;
   success: (title: string, message?: string) => void;
   error: (title: string, message?: string) => void;
@@ -29,18 +30,30 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((toast: Omit<Toast, "id">) => {
+  const addToast = useCallback((toast: Omit<Toast, "id" | "isExiting">) => {
     const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev, { ...toast, id }]);
+    setToasts((prev) => [...prev, { ...toast, id, isExiting: false }]);
 
-    // Auto remove after 5 seconds
+    // Begin exit animation before removal
+    setTimeout(() => {
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, isExiting: true } : t))
+      );
+    }, 4700);
+
+    // Remove from DOM after exit animation completes
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, isExiting: true } : t))
+    );
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 200);
   }, []);
 
   const success = useCallback(
@@ -114,7 +127,9 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
 
   return (
     <div
-      className={`flex min-w-[300px] items-start gap-3 rounded-2xl border p-4 shadow-lg ${backgrounds[toast.type]}`}
+      className={`flex min-w-[300px] items-start gap-3 rounded-2xl border p-4 shadow-lg ${backgrounds[toast.type]} ${
+        toast.isExiting ? "animate-toast-fade-out" : "animate-toast-slide-in"
+      }`}
       role="alert"
     >
       {icons[toast.type]}

@@ -23,6 +23,15 @@ export default async function MyTasksPage() {
       where: {
         memberId: member.id,
         status: { in: ["PENDING", "IN_PROGRESS"] },
+        // Hide assignments the sender transferred (pending or accepted)
+        NOT: {
+          transfers: {
+            some: {
+              fromMemberId: member.id,
+              status: { in: ["PENDING", "ACCEPTED"] },
+            },
+          },
+        },
       },
       include: {
         task: {

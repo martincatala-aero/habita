@@ -78,14 +78,19 @@ export function MyAssignmentsList({
   return (
     <div className="-space-y-3">
       {assignments.map((assignment, index) => (
-        <AssignmentCard
+        <div
           key={assignment.id}
-          assignment={assignment}
-          members={members}
-          currentMemberId={currentMemberId}
-          colorIndex={index % CARD_COLORS.length}
-          isFirst={index === 0}
-        />
+          className="animate-stagger-fade-in"
+          style={{ '--stagger-index': index } as React.CSSProperties}
+        >
+          <AssignmentCard
+            assignment={assignment}
+            members={members}
+            currentMemberId={currentMemberId}
+            colorIndex={index % CARD_COLORS.length}
+            isFirst={index === 0}
+          />
+        </div>
       ))}
     </div>
   );

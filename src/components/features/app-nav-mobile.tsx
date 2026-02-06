@@ -26,9 +26,9 @@ export function AppNavMobile() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center justify-center rounded-full p-3 transition-colors touch-manipulation",
+                "flex items-center justify-center rounded-full p-3 transition-all duration-200 touch-manipulation",
                 isActive
-                  ? "bg-[#ffe8c3] text-foreground"
+                  ? "bg-[#ffe8c3] text-foreground scale-110"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

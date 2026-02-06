@@ -49,13 +49,14 @@ export function StatsCards({ completed, pending, overdue, members }: StatsCardsP
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-      {STATS_CONFIG.map((stat) => {
+      {STATS_CONFIG.map((stat, index) => {
         const Icon = stat.icon;
         const value = values[stat.key] ?? 0;
         return (
           <div
             key={stat.key}
-            className={`rounded-[10px] ${stat.bg} p-4`}
+            className={`animate-stagger-fade-in rounded-[10px] ${stat.bg} p-4 transition-transform duration-200 hover:scale-[1.02]`}
+            style={{ '--stagger-index': index } as React.CSSProperties}
           >
             <div className="flex items-center justify-between">
               <span className={`text-xs font-semibold sm:text-sm ${stat.text}`}>

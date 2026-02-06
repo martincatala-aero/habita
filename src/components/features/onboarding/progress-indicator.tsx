@@ -17,9 +17,9 @@ export function ProgressIndicator({ steps, currentStep }: ProgressIndicatorProps
         return (
           <div
             key={step}
-            className={`h-2 flex-1 rounded-full transition-colors duration-300 ${
+            className={`h-2 flex-1 rounded-full transition-all duration-300 ease-out ${
               isCurrent
-                ? "bg-primary"
+                ? "bg-primary scale-y-125"
                 : isCompleted
                   ? "bg-primary/60"
                   : "bg-muted"

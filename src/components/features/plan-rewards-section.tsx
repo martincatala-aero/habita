@@ -2,7 +2,6 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Sparkles, Trophy, User } from "lucide-react";
@@ -79,26 +78,24 @@ export function PlanRewardsSection({
   // No plan and no rewards - show empty state
   if (!planId && rewards.length === 0) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="py-8 text-center">
-          <Sparkles className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="font-medium">Sin recompensas aún</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Las recompensas se generan automáticamente al finalizar un plan
-          </p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl bg-[#fff0d7] px-6 py-8 text-center">
+        <Sparkles className="mx-auto mb-3 h-8 w-8 text-[#272727]/50" />
+        <p className="font-medium text-foreground">Sin recompensas aún</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Las recompensas se generan automáticamente al finalizar un plan
+        </p>
+      </div>
     );
   }
 
   // Plan exists but no rewards yet - show generate button
   if (canGenerate && rewards.length === 0) {
     return (
-      <div className="rounded-3xl bg-gray-100 p-6">
+      <div className="rounded-2xl bg-[#e4d5ff]/50 p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-4 flex-1">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100">
-              <Sparkles className="h-6 w-6 text-blue-600" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#d0b6ff]">
+              <Sparkles className="h-6 w-6 text-[#522a97]" />
             </div>
             <div>
               <p className="font-semibold text-foreground">Generar recompensas</p>
@@ -138,6 +135,13 @@ export function PlanRewardsSection({
     rewardsByMember.set(key, existing);
   }
 
+  const MEMBER_COLORS = [
+    { bg: "bg-[#d2ffa0]/50", text: "text-[#272727]", rewardBg: "bg-white/70" },
+    { bg: "bg-[#d0b6ff]/40", text: "text-[#522a97]", rewardBg: "bg-white/70" },
+    { bg: "bg-[#ffe8c3]/60", text: "text-[#272727]", rewardBg: "bg-white/70" },
+    { bg: "bg-[#e4d5ff]/40", text: "text-[#272727]", rewardBg: "bg-white/70" },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -146,27 +150,24 @@ export function PlanRewardsSection({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {Array.from(rewardsByMember.entries()).map(([memberId, memberRewards]) => {
+        {Array.from(rewardsByMember.entries()).map(([memberId, memberRewards], index) => {
           const memberName = memberMap.get(memberId) ?? "Miembro";
           const completionRate = memberRewards[0]?.completionRate ?? 0;
+          const colors = MEMBER_COLORS[index % MEMBER_COLORS.length]!;
 
           return (
-            <Card key={memberId}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">{memberName}</CardTitle>
-                </div>
-                <CardDescription className="flex items-center gap-2">
-                  <span>{completionRate}% completado</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Progress value={completionRate} className="mb-3 h-2" />
+            <div key={memberId} className={`rounded-2xl ${colors.bg} p-5`}>
+              <div className="flex items-center gap-2 mb-1">
+                <User className={`h-4 w-4 ${colors.text} opacity-60`} />
+                <span className={`font-semibold ${colors.text}`}>{memberName}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">{completionRate}% completado</p>
+              <Progress value={completionRate} className="mb-4 h-2" />
+              <div className="space-y-2">
                 {memberRewards.map((reward) => (
-                  <div key={reward.id} className="rounded-2xl border bg-muted/30 p-3">
+                  <div key={reward.id} className={`rounded-2xl ${colors.rewardBg} p-3 shadow-sm`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-sm">{reward.name}</span>
+                      <span className="font-medium text-sm text-foreground">{reward.name}</span>
                       <Badge variant="secondary" className="text-xs">
                         {reward.pointsCost} pts
                       </Badge>
@@ -176,8 +177,8 @@ export function PlanRewardsSection({
                     )}
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>

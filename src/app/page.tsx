@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getCurrentMember } from "@/lib/session";
 import { getRecommendedDashboard } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -56,45 +57,24 @@ export default async function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-12 sm:py-20">
-        <div className="container px-4">
-          <h2 className="mb-8 text-center text-2xl font-bold sm:mb-12 sm:text-3xl">
-            Todo lo que tu hogar necesita
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <FeatureCard
-              icon={<CheckCircle2 className="h-7 w-7" />}
-              title="Gestión de tareas"
-              description="Crea, asigna y rastrea todas las tareas del hogar en un solo lugar."
-              bg="bg-[#d2ffa0]/50"
-              iconBg="bg-[#d2ffa0]"
-            />
-            <FeatureCard
-              icon={<Users className="h-7 w-7" />}
-              title="Colaboración familiar"
-              description="Invita a todos los miembros de tu hogar y distribuye las responsabilidades."
-              bg="bg-[#e4d5ff]/50"
-              iconBg="bg-[#d0b6ff]"
-            />
-            <FeatureCard
-              icon={<Trophy className="h-7 w-7" />}
-              title="Gamificación"
-              description="Gana XP, sube de nivel y desbloquea logros al completar tareas."
-              bg="bg-[#fff0d7]/60"
-              iconBg="bg-[#ffe8c3]"
-            />
-            <FeatureCard
-              icon={<RefreshCw className="h-7 w-7" />}
-              title="Rotaciones automáticas"
-              description="Configura asignaciones automáticas para tareas recurrentes."
-              bg="bg-[#e4d5ff]/40"
-              iconBg="bg-[#e4d5ff]"
-            />
+      <ScrollReveal>
+        <section className="py-12 sm:py-20">
+          <div className="container px-4">
+            <h2 className="mb-8 text-center text-2xl font-bold sm:mb-12 sm:text-3xl">
+              Todo lo que tu hogar necesita
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <FeatureCard index={0} icon={<CheckCircle2 className="h-7 w-7" />} title="Gestión de tareas" description="Crea, asigna y rastrea todas las tareas del hogar en un solo lugar." bg="bg-[#d2ffa0]/50" iconBg="bg-[#d2ffa0]" />
+              <FeatureCard index={1} icon={<Users className="h-7 w-7" />} title="Colaboración familiar" description="Invita a todos los miembros de tu hogar y distribuye las responsabilidades." bg="bg-[#e4d5ff]/50" iconBg="bg-[#d0b6ff]" />
+              <FeatureCard index={2} icon={<Trophy className="h-7 w-7" />} title="Gamificación" description="Gana XP, sube de nivel y desbloquea logros al completar tareas." bg="bg-[#fff0d7]/60" iconBg="bg-[#ffe8c3]" />
+              <FeatureCard index={3} icon={<RefreshCw className="h-7 w-7" />} title="Rotaciones automáticas" description="Configura asignaciones automáticas para tareas recurrentes." bg="bg-[#e4d5ff]/40" iconBg="bg-[#e4d5ff]" />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </ScrollReveal>
 
       {/* For Kids Section */}
+      <ScrollReveal>
       <section className="py-12 sm:py-20">
         <div className="container px-4">
           <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
@@ -155,6 +135,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* CTA Section */}
       <section className="rounded-t-[32px] bg-primary py-12 text-primary-foreground sm:py-20">
@@ -185,12 +166,14 @@ export default async function HomePage() {
 }
 
 function FeatureCard({
+  index,
   icon,
   title,
   description,
   bg,
   iconBg,
 }: {
+  index: number;
   icon: React.ReactNode;
   title: string;
   description: string;
@@ -198,7 +181,10 @@ function FeatureCard({
   iconBg: string;
 }) {
   return (
-    <div className={`rounded-2xl p-5 ${bg}`}>
+    <div
+      className={`animate-stagger-fade-in rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] hover:shadow-md ${bg}`}
+      style={{ '--stagger-index': index } as React.CSSProperties}
+    >
       <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-full ${iconBg}`}>
         {icon}
       </div>

@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, Plus, Search, User, X } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, Sparkles, User, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
@@ -90,6 +90,12 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
 
   const [step, setStep] = useState<StepId>("name");
+  const [stepDirection, setStepDirection] = useState<"forward" | "back">("forward");
+
+  const goToStep = (nextStep: StepId, direction: "forward" | "back" = "forward") => {
+    setStepDirection(direction);
+    setStep(nextStep);
+  };
   const [memberName, setMemberName] = useState("");
   const [householdName, setHouseholdName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -118,7 +124,7 @@ function OnboardingContent() {
   useEffect(() => {
     if (searchParams.get("mode") === "join") {
       setHasInviteCode(true);
-      setStep("join");
+      goToStep("join", "forward");
     }
   }, [searchParams]);
 
@@ -221,26 +227,26 @@ function OnboardingContent() {
   const handleNextFromName = () => {
     setError(null);
     if (hasInviteCode) {
-      setStep("join");
+      goToStep("join", "forward");
     } else {
-      setStep("household");
+      goToStep("household", "forward");
     }
   };
 
   const handleBackToName = () => {
     setError(null);
     setHasInviteCode(false);
-    setStep("name");
+    goToStep("name", "back");
   };
 
   const handleHouseholdNext = () => {
     setError(null);
-    setStep("catalog");
+    goToStep("catalog", "forward");
   };
 
   const handleHouseholdBack = () => {
     setError(null);
-    setStep("name");
+    goToStep("name", "back");
   };
 
   const handleCatalogNext = () => {
@@ -249,27 +255,27 @@ function OnboardingContent() {
       return;
     }
     setError(null);
-    setStep("frequency");
+    goToStep("frequency", "forward");
   };
 
   const handleCatalogBack = () => {
     setError(null);
-    setStep("household");
+    goToStep("household", "back");
   };
 
   const handleFrequencyNext = () => {
     setError(null);
-    setStep("summary");
+    goToStep("summary", "forward");
   };
 
   const handleFrequencyBack = () => {
     setError(null);
-    setStep("catalog");
+    goToStep("catalog", "back");
   };
 
   const handleSummaryBack = () => {
     setError(null);
-    setStep("frequency");
+    goToStep("frequency", "back");
   };
 
   const updateTaskFrequency = (category: string, taskName: string, newFrequency: string) => {
@@ -325,7 +331,7 @@ function OnboardingContent() {
 
   const handleCreateHousehold = async () => {
     setError(null);
-    setStep("creating");
+    goToStep("creating", "forward");
     setCreateLoading(true);
     setLoadingMessageIndex(0);
 
@@ -371,11 +377,11 @@ function OnboardingContent() {
 
       if (data.household?.inviteCode) {
         setCreatedInviteCode(data.household.inviteCode);
-        setStep("invite");
+        goToStep("invite", "forward");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al crear el hogar");
-      setStep("summary");
+      goToStep("summary", "back");
     } finally {
       clearInterval(messageInterval);
       setCreateLoading(false);
@@ -433,41 +439,58 @@ function OnboardingContent() {
     router.push("/dashboard");
   };
 
-  /* ─── Step: name (welcome) ─── */
+  const stepAnimationClass = stepDirection === "forward" ? "animate-step-enter" : "animate-step-enter-reverse";
+
+  /* ─── Step: name (welcome / start screen) ─── */
   if (step === "name") {
     return (
-      <OnboardingLayout
-        onContinue={handleNextFromName}
-        continueLabel="Continuar"
-      >
-        <div className="space-y-6">
-          <StepHeader
-            title="Bienvenido!"
-            subtitle="Configura las tareas de tu hogar"
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="pt-4">
-            <Button
+      <div key="name" className={stepAnimationClass}>
+        <div className="flex min-h-screen w-full flex-col items-center bg-[#626efe] px-6">
+          {/* Logo — centrado verticalmente */}
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <h1 className="text-[98px] font-bold leading-none tracking-tighter text-[#d2ffa0]">
+              Hábita
+            </h1>
+            <p className="mt-3 flex items-center gap-1.5 text-lg text-[#fff7ea]">
+              Que las tareas no sean el problema
+              <Sparkles className="size-4 text-[#d2ffa0]" />
+            </p>
+          </div>
+
+          {/* Botones — empujados al fondo */}
+          <div className="w-full max-w-xs pb-12">
+            <button
               type="button"
-              variant="ghost"
-              className="w-full text-muted-foreground"
+              onClick={() => {
+                setError(null);
+                setHasInviteCode(false);
+                goToStep("household", "forward");
+              }}
+              className="w-full rounded-full bg-white py-4 text-base font-bold text-[#5260fe] transition-all duration-200 active:scale-[0.98]"
+            >
+              Crear hogar
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setError(null);
                 setHasInviteCode(true);
-                setStep("join");
+                goToStep("join", "forward");
               }}
+              className="mt-4 w-full rounded-full border-2 border-white bg-transparent py-4 text-base font-bold text-white transition-all duration-200 active:scale-[0.98]"
             >
               Tengo un código de invitación
-            </Button>
+            </button>
           </div>
         </div>
-      </OnboardingLayout>
+      </div>
     );
   }
 
   /* ─── Step: household ─── */
   if (step === "household") {
     return (
+      <div key="household" className={stepAnimationClass}>
       <OnboardingLayout
         onBack={handleHouseholdBack}
         onContinue={handleHouseholdNext}
@@ -516,12 +539,14 @@ function OnboardingContent() {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
       </OnboardingLayout>
+      </div>
     );
   }
 
   /* ─── Step: catalog ─── */
   if (step === "catalog") {
     return (
+      <div key="catalog" className={stepAnimationClass}>
       <OnboardingLayout
         onBack={handleCatalogBack}
         onContinue={handleCatalogNext}
@@ -701,12 +726,14 @@ function OnboardingContent() {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
       </OnboardingLayout>
+      </div>
     );
   }
 
   /* ─── Step: frequency ─── */
   if (step === "frequency") {
     return (
+      <div key="frequency" className={stepAnimationClass}>
       <OnboardingLayout
         onBack={handleFrequencyBack}
         onContinue={handleFrequencyNext}
@@ -754,6 +781,7 @@ function OnboardingContent() {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
       </OnboardingLayout>
+      </div>
     );
   }
 
@@ -765,6 +793,7 @@ function OnboardingContent() {
     const visibleTasks = showAllSummaryTasks ? allSelectedTasks : allSelectedTasks.slice(0, 5);
 
     return (
+      <div key="summary" className={stepAnimationClass}>
       <OnboardingLayout
         onBack={handleSummaryBack}
         onContinue={handleCreateHousehold}
@@ -833,6 +862,7 @@ function OnboardingContent() {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
       </OnboardingLayout>
+      </div>
     );
   }
 
@@ -844,6 +874,7 @@ function OnboardingContent() {
   /* ─── Step: join ─── */
   if (step === "join") {
     return (
+      <div key="join" className={stepAnimationClass}>
       <OnboardingLayout
         onBack={handleBackToName}
         showContinue={false}
@@ -882,12 +913,14 @@ function OnboardingContent() {
           </form>
         </div>
       </OnboardingLayout>
+      </div>
     );
   }
 
   /* ─── Step: invite (success) ─── */
   if (step === "invite" && createdInviteCode) {
     return (
+      <div key="invite" className={stepAnimationClass}>
       <OnboardingLayout
         onContinue={handleContinueToApp}
         continueLabel="Continuar a la app"
@@ -916,6 +949,7 @@ function OnboardingContent() {
           </Button>
         </div>
       </OnboardingLayout>
+      </div>
     );
   }
 
