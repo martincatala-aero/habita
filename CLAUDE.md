@@ -241,6 +241,8 @@ Solo usar cuando hay un problema medido:
 
 # REGLAS DATABASE
 
+**Referencia obligatoria para Prisma:** [Prisma LLM Docs](https://www.prisma.io/docs/llms.txt)
+
 ## Schema Design
 
 ### DO ✅
