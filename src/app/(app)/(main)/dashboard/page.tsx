@@ -3,7 +3,6 @@ import { getCurrentMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isAIEnabled } from "@/lib/llm/provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Leaderboard } from "@/components/features/leaderboard";
 import { ActivityChart } from "@/components/features/activity-chart";
 import { StatsCards } from "@/components/features/stats-cards";
@@ -189,13 +188,6 @@ export default async function DashboardPage() {
 
   const aiEnabled = isAIEnabled();
 
-  // XP progress to next level
-  const currentXp = member.level?.xp ?? 0;
-  const currentLevel = member.level?.level ?? 1;
-  const xpForCurrentLevel = (currentLevel - 1) * 100;
-  const xpProgress = currentXp - xpForCurrentLevel;
-  const xpProgressPercent = Math.min((xpProgress / 100) * 100, 100);
-
   return (
     <div className="container max-w-6xl px-4 py-6 sm:py-8">
       {/* Header: hogar + código */}
@@ -222,26 +214,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Nivel / XP - bloque gamificado */}
-      <Card className="mb-6 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader className="pb-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-lg">Mi progreso</CardTitle>
-            <span className="rounded-xl bg-primary px-3 py-1 text-sm font-bold text-primary-foreground shadow-sm">
-              Nivel {currentLevel}
-            </span>
-          </div>
-          <CardDescription>{currentXp} XP total</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-2 flex justify-between text-sm font-medium">
-            <span>{xpProgress} XP</span>
-            <span className="text-muted-foreground">100 XP para subir</span>
-          </div>
-          <Progress value={xpProgressPercent} className="h-3" />
-        </CardContent>
-      </Card>
 
       {/* Suggestions Card - Priority placement */}
       <div className="mb-6">
