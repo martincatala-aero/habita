@@ -41,7 +41,7 @@ export const onboardingTaskSchema = z.object({
 
 export const createHouseholdWithTasksSchema = z.object({
   householdName: z.string().min(1, "El nombre del hogar es requerido").max(50),
-  memberName: z.string().min(1, "Tu nombre es requerido").max(50),
+  memberName: z.string().max(50).optional(),
   memberType: memberTypeSchema.optional(),
   tasks: z.array(onboardingTaskSchema).min(1, "Selecciona al menos una tarea"),
 });

@@ -110,7 +110,7 @@ export default async function ProfilePage() {
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Level Card */}
         <Card>
           <CardHeader className="pb-2">
@@ -169,29 +169,6 @@ export default async function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Member Type Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Tipo de miembro</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant="secondary" className="text-lg">
-              {member.memberType === "ADULT"
-                ? "Adulto"
-                : member.memberType === "TEEN"
-                  ? "Adolescente"
-                  : "Niño"}
-            </Badge>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Capacidad:{" "}
-              {member.memberType === "ADULT"
-                ? "100%"
-                : member.memberType === "TEEN"
-                  ? "60%"
-                  : "30%"}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Achievements */}

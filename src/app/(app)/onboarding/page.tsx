@@ -18,7 +18,6 @@ import { CatalogTaskItem } from "@/components/features/onboarding/catalog-task-i
 import { ChevronRight, Plus, Check, Search, X } from "lucide-react";
 
 type StepId = "name" | "household" | "catalog" | "frequency" | "summary" | "creating" | "invite" | "join";
-type MemberTypeChoice = "adult" | "teen" | "child";
 
 interface CatalogTaskFromApi {
   name: string;
@@ -42,7 +41,7 @@ interface CategoryFromApi {
 }
 
 const STEPS_CREATE: StepId[] = ["name", "household", "catalog", "frequency", "summary", "invite"];
-const STEPS_JOIN: StepId[] = ["name", "join"];
+const STEPS_JOIN: StepId[] = ["join"];
 
 const LOADING_MESSAGES = [
   "Distribuyendo tareas equitativamente...",
@@ -50,12 +49,6 @@ const LOADING_MESSAGES = [
   "Creando tu calendario de tareas...",
   "Casi listo...",
 ];
-
-const MEMBER_TYPE_LABELS: Record<MemberTypeChoice, string> = {
-  adult: "Adulto",
-  teen: "Adolescente",
-  child: "Niño",
-};
 
 const FREQUENCY_OPTIONS = [
   { value: "DAILY", label: "Diario" },
@@ -99,7 +92,6 @@ function OnboardingContent() {
   const [step, setStep] = useState<StepId>("name");
   const [memberName, setMemberName] = useState("");
   const [householdName, setHouseholdName] = useState("");
-  const [memberType, setMemberType] = useState<MemberTypeChoice>("adult");
   const [inviteCode, setInviteCode] = useState("");
   const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +116,10 @@ function OnboardingContent() {
   const hasFetchedCatalogRef = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get("mode") === "join") setHasInviteCode(true);
+    if (searchParams.get("mode") === "join") {
+      setHasInviteCode(true);
+      setStep("join");
+    }
   }, [searchParams]);
 
   // Prefill member name from Google account
@@ -231,20 +226,18 @@ function OnboardingContent() {
   const selectedCount = Object.values(catalogTasks).flat().filter((t) => t.selected).length;
 
   const handleNextFromName = () => {
-    const name = memberName.trim();
-    if (!name) {
-      setError("Ingresa tu nombre");
-      return;
-    }
     setError(null);
-    if (hasInviteCode) setStep("join");
-    else setStep("household");
+    if (hasInviteCode) {
+      setStep("join");
+    } else {
+      setStep("household");
+    }
   };
 
   const handleBackToName = () => {
     setError(null);
+    setHasInviteCode(false);
     setStep("name");
-    if (step === "join") setHasInviteCode(false);
   };
 
   const handleHouseholdNext = () => {
@@ -368,8 +361,8 @@ function OnboardingContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             householdName: householdName.trim() || `${memberName.trim()}'s Home`,
-            memberName: memberName.trim(),
-            memberType,
+            memberName: memberName.trim() || undefined,
+            memberType: "adult",
             tasks: tasksPayload,
           }),
         }),
@@ -414,7 +407,7 @@ function OnboardingContent() {
         body: JSON.stringify({
           inviteCode: code,
           memberName: memberName.trim(),
-          memberType,
+          memberType: "adult",
         }),
       });
 
@@ -455,7 +448,7 @@ function OnboardingContent() {
   return (
     <div className="container flex min-h-[80vh] flex-col items-center justify-center px-4 py-6 sm:py-8">
       <div className={`w-full ${maxW} space-y-6`}>
-        {/* Step: name */}
+        {/* Step: name (welcome screen for CREATE flow) */}
         {step === "name" && (
           <Card>
             <CardHeader className="space-y-1 text-center">
@@ -466,32 +459,6 @@ function OnboardingContent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Input
-                  placeholder="ej., Franco"
-                  value={memberName}
-                  onChange={(e) => setMemberName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleNextFromName()}
-                  className={inputClass}
-                  maxLength={50}
-                  autoFocus
-                />
-              </div>
-              {!hasInviteCode && (
-                <div className="flex gap-2">
-                  {(["adult", "teen", "child"] as const).map((t) => (
-                    <Button
-                      key={t}
-                      type="button"
-                      variant={memberType === t ? "default" : "outline"}
-                      className="flex-1"
-                      onClick={() => setMemberType(t)}
-                    >
-                      {MEMBER_TYPE_LABELS[t]}
-                    </Button>
-                  ))}
-                </div>
-              )}
               {error && (
                 <p className="text-sm text-destructive">{error}</p>
               )}
@@ -510,12 +477,11 @@ function OnboardingContent() {
                   className="w-full text-muted-foreground"
                   onClick={() => {
                     setError(null);
-                    setHasInviteCode(!hasInviteCode);
+                    setHasInviteCode(true);
+                    setStep("join");
                   }}
                 >
-                  {hasInviteCode
-                    ? "Crear un nuevo hogar"
-                    : "Tengo un código de invitación"}
+                  Tengo un código de invitación
                 </Button>
               </div>
             </CardContent>
@@ -921,11 +887,19 @@ function OnboardingContent() {
               <ProgressIndicator steps={stepsForProgress} currentStep={step} />
               <CardTitle className="text-2xl">Unirse al Hogar</CardTitle>
               <CardDescription>
-                Ingresa el código de invitación
+                Ingresa tu nombre y el código de invitación
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleJoinHousehold} className="space-y-4">
+                <Input
+                  placeholder="Tu nombre"
+                  value={memberName}
+                  onChange={(e) => setMemberName(e.target.value)}
+                  className={inputClass}
+                  maxLength={50}
+                  autoFocus
+                />
                 <Input
                   placeholder="CODIGO"
                   value={inviteCode}
@@ -949,7 +923,7 @@ function OnboardingContent() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={!inviteCode.trim() || joinLoading}
+                    disabled={!memberName.trim() || !inviteCode.trim() || joinLoading}
                   >
                     {joinLoading ? "Uniendo..." : "Unirse"}
                   </Button>

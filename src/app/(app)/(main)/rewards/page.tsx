@@ -3,8 +3,22 @@ import { getCurrentMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isAIEnabled } from "@/lib/llm/provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Leaderboard } from "@/components/features/leaderboard";
 import { PlanRewardsSection } from "@/components/features/plan-rewards-section";
 import { Coins } from "lucide-react";
+
+import type { MemberType } from "@prisma/client";
+
+interface LeaderboardMember {
+  id: string;
+  name: string;
+  memberType: MemberType;
+  level: number;
+  xp: number;
+  weeklyTasks: number;
+  monthlyTasks: number;
+  totalTasks: number;
+}
 
 export default async function RewardsPage() {
   const member = await getCurrentMember();
@@ -45,11 +59,66 @@ export default async function RewardsPage() {
     take: 20,
   });
 
-  // Get household members for display
-  const members = await prisma.member.findMany({
+  // Get household members with levels for leaderboard
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const allMembers = await prisma.member.findMany({
     where: { householdId: member.householdId, isActive: true },
-    select: { id: true, name: true },
+    include: { level: true },
   });
+
+  const [weeklyCompletions, monthlyCompletions, totalCompletions] = await Promise.all([
+    prisma.assignment.groupBy({
+      by: ["memberId"],
+      where: {
+        householdId: member.householdId,
+        status: { in: ["COMPLETED", "VERIFIED"] },
+        completedAt: { gte: startOfWeek },
+      },
+      _count: { id: true },
+    }),
+    prisma.assignment.groupBy({
+      by: ["memberId"],
+      where: {
+        householdId: member.householdId,
+        status: { in: ["COMPLETED", "VERIFIED"] },
+        completedAt: { gte: startOfMonth },
+      },
+      _count: { id: true },
+    }),
+    prisma.assignment.groupBy({
+      by: ["memberId"],
+      where: {
+        householdId: member.householdId,
+        status: { in: ["COMPLETED", "VERIFIED"] },
+      },
+      _count: { id: true },
+    }),
+  ]);
+
+  const weeklyMap = new Map(weeklyCompletions.map((c) => [c.memberId, c._count.id]));
+  const monthlyMap = new Map(monthlyCompletions.map((c) => [c.memberId, c._count.id]));
+  const totalMap = new Map(totalCompletions.map((c) => [c.memberId, c._count.id]));
+
+  const leaderboard: LeaderboardMember[] = allMembers
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      memberType: m.memberType,
+      level: m.level?.level ?? 1,
+      xp: m.level?.xp ?? 0,
+      weeklyTasks: weeklyMap.get(m.id) ?? 0,
+      monthlyTasks: monthlyMap.get(m.id) ?? 0,
+      totalTasks: totalMap.get(m.id) ?? 0,
+    }))
+    .sort((a, b) => b.xp - a.xp);
+
+  // Members list for rewards display
+  const members = allMembers.map((m) => ({ id: m.id, name: m.name }));
 
   // Calculate available points
   const level = await prisma.memberLevel.findUnique({
@@ -122,6 +191,11 @@ export default async function RewardsPage() {
             <p className="text-3xl font-bold">{spentPoints}</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Leaderboard */}
+      <div className="mb-8">
+        <Leaderboard members={leaderboard} currentMemberId={member.id} />
       </div>
 
       {/* AI Rewards Section */}

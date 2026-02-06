@@ -3,7 +3,6 @@ import { getCurrentMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isAIEnabled } from "@/lib/llm/provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Leaderboard } from "@/components/features/leaderboard";
 import { ActivityChart } from "@/components/features/activity-chart";
 import { StatsCards } from "@/components/features/stats-cards";
 import { RecentActivity } from "@/components/features/recent-activity";
@@ -13,17 +12,6 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { UserPlus } from "lucide-react";
 
 import type { MemberType } from "@prisma/client";
-
-interface LeaderboardMember {
-  id: string;
-  name: string;
-  memberType: MemberType;
-  level: number;
-  xp: number;
-  weeklyTasks: number;
-  monthlyTasks: number;
-  totalTasks: number;
-}
 
 export default async function DashboardPage() {
   const member = await getCurrentMember();
@@ -39,61 +27,10 @@ export default async function DashboardPage() {
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  // Get all members with levels
+  // Get all members
   const members = await prisma.member.findMany({
     where: { householdId, isActive: true },
-    include: { level: true },
   });
-
-  // Get completion counts
-  const [weeklyCompletions, monthlyCompletions, totalCompletions] = await Promise.all([
-    prisma.assignment.groupBy({
-      by: ["memberId"],
-      where: {
-        householdId,
-        status: { in: ["COMPLETED", "VERIFIED"] },
-        completedAt: { gte: startOfWeek },
-      },
-      _count: { id: true },
-    }),
-    prisma.assignment.groupBy({
-      by: ["memberId"],
-      where: {
-        householdId,
-        status: { in: ["COMPLETED", "VERIFIED"] },
-        completedAt: { gte: startOfMonth },
-      },
-      _count: { id: true },
-    }),
-    prisma.assignment.groupBy({
-      by: ["memberId"],
-      where: {
-        householdId,
-        status: { in: ["COMPLETED", "VERIFIED"] },
-      },
-      _count: { id: true },
-    }),
-  ]);
-
-  const weeklyMap = new Map(weeklyCompletions.map((c) => [c.memberId, c._count.id]));
-  const monthlyMap = new Map(monthlyCompletions.map((c) => [c.memberId, c._count.id]));
-  const totalMap = new Map(totalCompletions.map((c) => [c.memberId, c._count.id]));
-
-  // Build leaderboard
-  const leaderboard: LeaderboardMember[] = members
-    .map((m) => ({
-      id: m.id,
-      name: m.name,
-      memberType: m.memberType,
-      level: m.level?.level ?? 1,
-      xp: m.level?.xp ?? 0,
-      weeklyTasks: weeklyMap.get(m.id) ?? 0,
-      monthlyTasks: monthlyMap.get(m.id) ?? 0,
-      totalTasks: totalMap.get(m.id) ?? 0,
-    }))
-    .sort((a, b) => b.xp - a.xp);
 
   // Get totals
   const [totalCompleted, pendingCount, overdueCount] = await Promise.all([
@@ -254,55 +191,49 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Grid: una columna en móvil, 3 en lg */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <ActivityChart data={dailyCompletions} />
+      {/* Content grid */}
+      <div className="space-y-6">
+        <ActivityChart data={dailyCompletions} />
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mis tareas pendientes</CardTitle>
-                <CardDescription>{myPendingTasks.length} tareas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {myPendingTasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No tienes tareas pendientes</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {myPendingTasks.map((task) => (
-                      <li key={task.id} className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-                        {task.task.name}
-                        {task.dueDate && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {new Date(task.dueDate) < now ? (
-                              <span className="font-medium text-destructive">Atrasada</span>
-                            ) : (
-                              new Date(task.dueDate).toLocaleDateString("es", { day: "numeric", month: "short" })
-                            )}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <RecentActivity
-            activities={recentActivity.map((a) => ({
-              id: a.id,
-              taskName: a.task.name,
-              memberName: a.member.name,
-              completedAt: a.completedAt,
-            }))}
-          />
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Mis tareas pendientes</CardTitle>
+              <CardDescription>{myPendingTasks.length} tareas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {myPendingTasks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tienes tareas pendientes</p>
+              ) : (
+                <ul className="space-y-2">
+                  {myPendingTasks.map((task) => (
+                    <li key={task.id} className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+                      {task.task.name}
+                      {task.dueDate && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {new Date(task.dueDate) < now ? (
+                            <span className="font-medium text-destructive">Atrasada</span>
+                          ) : (
+                            new Date(task.dueDate).toLocaleDateString("es", { day: "numeric", month: "short" })
+                          )}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="space-y-6 lg:order-0">
-          <Leaderboard members={leaderboard} currentMemberId={member.id} />
-        </div>
+        <RecentActivity
+          activities={recentActivity.map((a) => ({
+            id: a.id,
+            taskName: a.task.name,
+            memberName: a.member.name,
+            completedAt: a.completedAt,
+          }))}
+        />
       </div>
     </div>
   );

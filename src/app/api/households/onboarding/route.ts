@@ -39,9 +39,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { householdName, memberName, memberType, tasks } = validation.data;
+    const { householdName, memberName: bodyMemberName, memberType, tasks } = validation.data;
     const prismaMemberType: MemberType =
       MEMBER_TYPE_MAP[memberType ?? "adult"] ?? "ADULT";
+
+    // Fallback member name to Google account name
+    let memberName = bodyMemberName?.trim();
+    if (!memberName) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+      memberName = user?.name ?? "Usuario";
+    }
 
     let inviteCode = generateInviteCode(8);
     let exists = await prisma.household.findUnique({
