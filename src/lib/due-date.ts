@@ -19,6 +19,7 @@ export function computeDueDateForFrequency(
 
   switch (frequency) {
     case "DAILY":
+      due.setDate(due.getDate() + 1);
       due.setHours(23, 59, 59, 999);
       break;
     case "WEEKLY":
