@@ -1,0 +1,18 @@
+# PostgreSQL para desarrollo local.
+# Uso: docker compose up -d   (o pnpm db:up)
+# Luego: pnpm db:push
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: habita-postgres
+    environment:
+      POSTGRES_USER: habita
+      POSTGRES_PASSWORD: habita
+      POSTGRES_DB: habita
+    ports:
+      - "5434:5432"
+    volumes:
+      - habita_pgdata:/var/lib/postgresql/data
+
+volumes:
+  habita_pgdata:

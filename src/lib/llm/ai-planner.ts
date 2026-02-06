@@ -1,0 +1,313 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { generateObject } from "ai";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { computeDueDateForFrequency } from "@/lib/due-date";
+import { isAIEnabled } from "./provider";
+
+import type { TaskFrequency } from "@prisma/client";
+
+const anthropic = createAnthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const assignmentSchema = z.object({
+  assignments: z.array(
+    z.object({
+      taskName: z.string(),
+      memberName: z.string(),
+      reason: z.string().describe("Breve justificación de la asignación"),
+    })
+  ),
+  balanceScore: z.number().min(0).max(100).describe("Puntuación de equidad 0-100"),
+  notes: z.array(z.string()).describe("Notas sobre la distribución"),
+});
+
+export type AIPlanResult = z.infer<typeof assignmentSchema>;
+
+interface PlanContext {
+  householdId: string;
+  members: Array<{
+    id: string;
+    name: string;
+    type: string;
+    pendingCount: number;
+    completedThisWeek: number;
+    level: number;
+    preferences: Array<{ taskName: string; preference: string }>;
+  }>;
+  tasks: Array<{
+    id: string;
+    name: string;
+    frequency: string;
+    weight: number;
+    minAge: number | null;
+  }>;
+  recentAssignments: Array<{
+    taskName: string;
+    memberName: string;
+    status: string;
+    daysAgo: number;
+  }>;
+}
+
+/**
+ * Generate a weekly task distribution plan using AI.
+ * Considers member preferences, capacity, recent history, and fairness.
+ */
+export async function generateAIPlan(householdId: string): Promise<AIPlanResult | null> {
+  if (!isAIEnabled()) {
+    return null;
+  }
+
+  const context = await buildPlanContext(householdId);
+
+  if (context.members.length === 0 || context.tasks.length === 0) {
+    return null;
+  }
+
+  const prompt = buildPlanPrompt(context);
+
+  try {
+    const result = await generateObject({
+      model: anthropic("claude-3-5-haiku-latest"),
+      schema: assignmentSchema,
+      prompt,
+    });
+
+    return result.object;
+  } catch (error) {
+    console.error("AI plan generation error:", error);
+    return null;
+  }
+}
+
+/**
+ * Generate AND apply a task distribution plan.
+ * Creates actual assignments in the database.
+ */
+export async function generateAndApplyPlan(householdId: string): Promise<{
+  success: boolean;
+  assignmentsCreated: number;
+  plan: AIPlanResult | null;
+  error?: string;
+}> {
+  const plan = await generateAIPlan(householdId);
+
+  if (!plan) {
+    // Fall back to deterministic algorithm
+    return {
+      success: false,
+      assignmentsCreated: 0,
+      plan: null,
+      error: "AI planning not available, use fallback algorithm",
+    };
+  }
+
+  // Get members and tasks for ID lookup
+  const [members, tasks] = await Promise.all([
+    prisma.member.findMany({
+      where: { householdId, isActive: true },
+      select: { id: true, name: true },
+    }),
+    prisma.task.findMany({
+      where: { householdId, isActive: true },
+      select: { id: true, name: true, frequency: true },
+    }),
+  ]);
+
+  const memberMap = new Map(members.map((m) => [m.name.toLowerCase(), m.id]));
+  const taskMap = new Map(tasks.map((t) => [t.name.toLowerCase(), { id: t.id, frequency: t.frequency }]));
+
+  const now = new Date();
+  const assignmentsToCreate: Array<{
+    taskId: string;
+    memberId: string;
+    householdId: string;
+    dueDate: Date;
+    status: "PENDING";
+  }> = [];
+
+  for (const assignment of plan.assignments) {
+    const memberId = memberMap.get(assignment.memberName.toLowerCase());
+    const taskInfo = taskMap.get(assignment.taskName.toLowerCase());
+
+    if (memberId && taskInfo) {
+      // Check if assignment already exists
+      const existing = await prisma.assignment.findFirst({
+        where: {
+          taskId: taskInfo.id,
+          memberId,
+          status: { in: ["PENDING", "IN_PROGRESS"] },
+        },
+      });
+
+      if (!existing) {
+        const dueDate = computeDueDateForFrequency(taskInfo.frequency as TaskFrequency, now);
+        assignmentsToCreate.push({
+          taskId: taskInfo.id,
+          memberId,
+          householdId,
+          dueDate,
+          status: "PENDING",
+        });
+      }
+    }
+  }
+
+  if (assignmentsToCreate.length > 0) {
+    await prisma.assignment.createMany({
+      data: assignmentsToCreate,
+    });
+  }
+
+  return {
+    success: true,
+    assignmentsCreated: assignmentsToCreate.length,
+    plan,
+  };
+}
+
+async function buildPlanContext(householdId: string): Promise<PlanContext> {
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const [members, tasks, recentAssignments, preferences, completedThisWeek] = await Promise.all([
+    prisma.member.findMany({
+      where: { householdId, isActive: true },
+      include: {
+        level: true,
+        assignments: {
+          where: { status: { in: ["PENDING", "IN_PROGRESS"] } },
+          select: { id: true },
+        },
+      },
+    }),
+    prisma.task.findMany({
+      where: { householdId, isActive: true },
+      select: { id: true, name: true, frequency: true, weight: true, minAge: true },
+    }),
+    prisma.assignment.findMany({
+      where: { householdId },
+      take: 50,
+      orderBy: { updatedAt: "desc" },
+      include: {
+        task: { select: { name: true } },
+        member: { select: { name: true } },
+      },
+    }),
+    prisma.memberPreference.findMany({
+      where: { member: { householdId } },
+      include: {
+        task: { select: { name: true } },
+        member: { select: { name: true } },
+      },
+    }),
+    prisma.assignment.groupBy({
+      by: ["memberId"],
+      where: {
+        householdId,
+        status: { in: ["COMPLETED", "VERIFIED"] },
+        completedAt: { gte: startOfWeek },
+      },
+      _count: { id: true },
+    }),
+  ]);
+
+  const completedMap = new Map(completedThisWeek.map((c) => [c.memberId, c._count.id]));
+  const prefsByMember = new Map<string, Array<{ taskName: string; preference: string }>>();
+
+  for (const pref of preferences) {
+    const memberPrefs = prefsByMember.get(pref.member.name) ?? [];
+    memberPrefs.push({
+      taskName: pref.task.name,
+      preference: pref.preference,
+    });
+    prefsByMember.set(pref.member.name, memberPrefs);
+  }
+
+  return {
+    householdId,
+    members: members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      type: m.memberType,
+      pendingCount: m.assignments.length,
+      completedThisWeek: completedMap.get(m.id) ?? 0,
+      level: m.level?.level ?? 1,
+      preferences: prefsByMember.get(m.name) ?? [],
+    })),
+    tasks: tasks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      frequency: t.frequency,
+      weight: t.weight,
+      minAge: t.minAge,
+    })),
+    recentAssignments: recentAssignments.map((a) => {
+      const daysAgo = Math.floor((now.getTime() - a.updatedAt.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        taskName: a.task.name,
+        memberName: a.member.name,
+        status: a.status,
+        daysAgo,
+      };
+    }),
+  };
+}
+
+function buildPlanPrompt(context: PlanContext): string {
+  const capacityRules = `
+Capacidad por tipo de miembro:
+- ADULT: 100% de capacidad
+- TEEN: 60% de capacidad
+- CHILD: 30% de capacidad`;
+
+  const membersInfo = context.members
+    .map((m) => {
+      let info = `- ${m.name} (${m.type}, nivel ${m.level}): ${m.pendingCount} tareas pendientes, ${m.completedThisWeek} completadas esta semana`;
+      if (m.preferences.length > 0) {
+        const prefs = m.preferences
+          .map((p) => `${p.taskName}: ${p.preference === "PREFERRED" ? "prefiere" : "no desea"}`)
+          .join(", ");
+        info += `\n  Preferencias: ${prefs}`;
+      }
+      return info;
+    })
+    .join("\n");
+
+  const tasksInfo = context.tasks
+    .map((t) => `- ${t.name} (${t.frequency}, peso ${t.weight})${t.minAge ? ` [edad mín: ${t.minAge}]` : ""}`)
+    .join("\n");
+
+  const recentInfo = context.recentAssignments
+    .slice(0, 20)
+    .map((a) => `- ${a.taskName} → ${a.memberName} (${a.status}, hace ${a.daysAgo} días)`)
+    .join("\n");
+
+  return `Eres un planificador de tareas del hogar. Tu objetivo es distribuir las tareas de forma EQUITATIVA y JUSTA entre los miembros.
+
+${capacityRules}
+
+## Miembros del hogar
+${membersInfo}
+
+## Tareas disponibles
+${tasksInfo}
+
+## Historial reciente de asignaciones
+${recentInfo || "(sin historial)"}
+
+## Instrucciones
+1. Asigna TODAS las tareas activas a los miembros
+2. Respeta las preferencias cuando sea posible (pero no obligatorio)
+3. Balancea la carga considerando la capacidad de cada tipo de miembro
+4. Rota las tareas - no siempre la misma persona para la misma tarea
+5. Si alguien tiene muchas tareas pendientes, asignarle menos nuevas
+6. Los niños (CHILD) no deben recibir tareas complejas o peligrosas
+7. Proporciona una breve razón para cada asignación
+
+Genera un plan de asignaciones para esta semana. El objetivo es maximizar la equidad (balanceScore alto = más justo).`;
+}

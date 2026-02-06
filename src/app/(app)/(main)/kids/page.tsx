@@ -1,0 +1,99 @@
+import { redirect } from "next/navigation";
+import { getCurrentMember } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { KidsTaskList } from "@/components/features/kids-task-list";
+import { KidsProgressCard } from "@/components/features/kids-progress-card";
+
+export default async function KidsPage() {
+  const member = await getCurrentMember();
+
+  if (!member) {
+    redirect("/onboarding");
+  }
+
+  // Get pending tasks for the kid
+  const assignments = await prisma.assignment.findMany({
+    where: {
+      memberId: member.id,
+      status: { in: ["PENDING", "IN_PROGRESS"] },
+    },
+    include: {
+      task: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          weight: true,
+          estimatedMinutes: true,
+        },
+      },
+    },
+    orderBy: { dueDate: "asc" },
+  });
+
+  // Get completed tasks today
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const completedToday = await prisma.assignment.count({
+    where: {
+      memberId: member.id,
+      status: { in: ["COMPLETED", "VERIFIED"] },
+      completedAt: { gte: todayStart },
+    },
+  });
+
+  // Get level info
+  const level = member.level;
+  const currentXp = level?.xp ?? 0;
+  const currentLevel = level?.level ?? 1;
+  const xpForNextLevel = currentLevel * 100;
+  const xpProgress = currentXp % 100;
+
+  // Get recent achievements
+  const recentAchievements = await prisma.memberAchievement.findMany({
+    where: { memberId: member.id },
+    include: {
+      achievement: {
+        select: { name: true, iconUrl: true },
+      },
+    },
+    orderBy: { unlockedAt: "desc" },
+    take: 3,
+  });
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+      <div className="container py-6">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-primary">
+            ¡Hola, {member.name}! 👋
+          </h1>
+          <p className="mt-2 text-xl text-muted-foreground">
+            {assignments.length === 0
+              ? "¡No tienes tareas pendientes!"
+              : `Tienes ${assignments.length} tarea${assignments.length > 1 ? "s" : ""} por hacer`}
+          </p>
+        </div>
+
+        {/* Progress Card */}
+        <div className="mb-8">
+          <KidsProgressCard
+            level={currentLevel}
+            xpProgress={xpProgress}
+            xpForNextLevel={100}
+            completedToday={completedToday}
+            recentAchievements={recentAchievements.map((a) => ({
+              name: a.achievement.name,
+              iconUrl: a.achievement.iconUrl,
+            }))}
+          />
+        </div>
+
+        {/* Tasks */}
+        <KidsTaskList assignments={assignments} />
+      </div>
+    </div>
+  );
+}
