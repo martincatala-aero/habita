@@ -34,7 +34,7 @@ export default async function HomePage() {
     <main className="min-h-screen">
       {/* Hero Section - mobile first */}
       <section className="relative overflow-hidden">
-        <div className="container flex min-h-[85vh] flex-col items-center justify-center px-4 py-12 text-center sm:py-20">
+        <div className="container flex min-h-[60vh] flex-col items-center justify-center px-4 py-12 text-center sm:min-h-[65vh] sm:py-20">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-[#e4d5ff] sm:h-24 sm:w-24">
             <span className="text-5xl sm:text-6xl">🏠</span>
           </div>
