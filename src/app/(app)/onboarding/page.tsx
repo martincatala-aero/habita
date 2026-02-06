@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/features/loading-screen";
+import { CatalogTaskItem } from "@/components/features/onboarding/catalog-task-item";
+import { OnboardingLayout } from "@/components/features/onboarding/onboarding-layout";
+import { StepHeader } from "@/components/features/onboarding/step-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -13,11 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OnboardingLayout } from "@/components/features/onboarding/onboarding-layout";
-import { StepHeader } from "@/components/features/onboarding/step-header";
-import { CatalogTaskItem } from "@/components/features/onboarding/catalog-task-item";
-import { LoadingScreen } from "@/components/features/loading-screen";
-import { Plus, Check, Search, X, ChevronDown, User } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronDown, Plus, Search, User, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 type StepId = "name" | "household" | "catalog" | "frequency" | "summary" | "creating" | "invite" | "join";
 
@@ -653,7 +653,7 @@ function OnboardingContent() {
                   Agregar tarea personalizada
                 </Button>
               ) : (
-                <div className="space-y-3 rounded-full border border-muted-foreground p-4">
+                <div className="space-y-3 rounded-full p-4">
                   <Input
                     placeholder="Nombre de la tarea"
                     value={customTaskName}
