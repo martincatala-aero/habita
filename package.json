@@ -13,6 +13,11 @@
     "db:up": "docker compose up -d",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:create": "prisma migrate dev --create-only",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:deploy:prod": "pnpm dlx dotenv-cli -e .env.prod -- prisma migrate deploy",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:migrate:reset:prod": "pnpm dlx dotenv-cli -e .env.prod -- prisma migrate reset --force",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate"
